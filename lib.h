@@ -181,8 +181,8 @@ int checkCRC (msg *m) {
     return (memcmp (&calculatedCRC, m->payload + 254, 2) == 0);
 } // verific daca CRC-ul e calculat ok
 
-void prepare_packet(msg * _packet, uint8_t _type, uint8_t * _data, uint8_t _data_len, uint8_t numar_secventa) {
-    uint8_t mark = 0x0D;
+void prepare_packet(msg * _packet, unsigned char _type, unsigned char * _data, unsigned char _data_len, unsigned char numar_secventa) {
+    unsigned char mark = 0x0D;
     sprintf(_packet->payload, "%c%c%c%c", SOH,
                                         5 + _data_len,
                                         numar_secventa,

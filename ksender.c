@@ -11,7 +11,7 @@
 #define HOST "127.0.0.1"
 #define PORT 10000
 
-uint8_t numar_secventa = 0;
+unsigned char numar_secventa = 0;
 
 
 void send (msg* m, unsigned char *recv_maxl, unsigned short *recv_time, unsigned char *recv_eol) {
@@ -25,9 +25,9 @@ void send (msg* m, unsigned char *recv_maxl, unsigned short *recv_time, unsigned
 			if(memcmp(&numar_secventa, r->payload + 2, 1) == 0 && r->payload[3] == ACK){
                 //pachetul a fost trimis cu succes si incrementez numarul de secventa
 				if(m->payload[3] == SEND_INIT){ // Daca timit pachetul S astept primesc ack cu configuratia recieverului
-                    *recv_maxl = (uint8_t ) r->payload[4];
+                    *recv_maxl = (unsigned char) r->payload[4];
                     memcpy(&((recv_time)), r->payload + 5, 2);
-                    *recv_eol = (uint8_t) r->payload[8];
+                    *recv_eol = (unsigned char) r->payload[8];
                 }
                 numar_secventa = (numar_secventa + 1) % 64;
 				break;
@@ -44,11 +44,11 @@ void send (msg* m, unsigned char *recv_maxl, unsigned short *recv_time, unsigned
 int main(int argc, char** argv) {
     
     init(HOST, PORT);
-    uint8_t send_init_data[MAXL], buffer[MAXL];
+    unsigned char send_init_data[MAXL], buffer[MAXL];
     memset(send_init_data, 0, MAXL);
     send_init_data[0] = MAXL;
-    uint8_t recv_maxl, recv_eol;
-    uint16_t time = TIME, recv_time; 
+    unsigned char recv_maxl, recv_eol;
+    unsigned short time = TIME, recv_time; 
     memcpy(send_init_data + 1, &time, 2);
     send_init_data[4] = EOL;
 

@@ -64,11 +64,11 @@ int main(int argc, char** argv) {
             prepare_packet(&packetACK, ACK, 0, 0, numar_secventa);
             send_message(&packetACK);
         } else { // Primesc configuratia senderului si ii trimit ack cu configuratia recieverului
+            
             server_MAXL = (unsigned char) recv_packet->payload[4];
             memcpy(&server_TIME, recv_packet->payload + 5, 2);
             server_EOL = (unsigned char) recv_packet->payload[8];
 
-    
             unsigned char reciever_settings[MAXL];
             memset(reciever_settings, 0, MAXL);
             reciever_settings[0] = MAXL;
@@ -83,28 +83,26 @@ int main(int argc, char** argv) {
 
         numar_secventa = (numar_secventa + 1) % 64;
         int fd;
-        switch(recv_packet->payload[3]){ //in functie de tipul de pachet urmez protocolul
-            case 'F':
-                strcpy (output_file, "recv_");
-                strcat (output_file, recv_packet->payload + 4);
-                fd = open(output_file, O_CREAT | O_RDWR | O_TRUNC, 0777);
-                break;
-            case 'D':
-                write(fd, recv_packet->payload + 4, (uint8_t)( recv_packet->payload[1] - 5));
-                break;
-            case 'Z':
-                close(fd);
-                break;
-            case 'B':
-                exit(0);
-                break;
+
+        if (recv_packet->payload[3] == FILE_HEADER) {
+            strcpy (output_file, "recv_");
+            strcat (output_file, recv_packet->payload + 4);
+            printf("[Receiver] Receiving FILE-HEADER\n");
+            fd = open(output_file, O_CREAT | O_RDWR | O_TRUNC, 0777);
+        } else if (recv_packet->payload[3] == DATE) {
+            printf("[Receiver] Receiving DATE\n");
+            write(fd, recv_packet->payload + 4, (unsigned char)( recv_packet->payload[1] - 5));
+        } else if (recv_packet->payload[3] == EOFZ) {
+            printf("[Receiver] Receiving END-OF-FILE\n");
+            close (fd);
+        } else if (recv_packet->payload[3] == EOT) {
+            printf("[Receiver] Receiving END-OF-TRANSMISSION\n");
+            printf("[Receiver] Transmission ended\n");
+            exit(0);
         }
         
         if(recv_packet->payload[3] != SEND_INIT)
             free(recv_packet);
     }
-
-    printf("[Receiver] Transmission ended\n");
-
     return 0;
 }
