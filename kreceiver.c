@@ -11,11 +11,6 @@
 
 unsigned char numar_secventa = 0;
 
-uint8_t server_MAXL = MAXL;
-uint16_t server_TIME = TIME;
-uint8_t server_EOL = 0x0d;
-
-
 int main(int argc, char** argv) {
 
 
@@ -24,6 +19,8 @@ int main(int argc, char** argv) {
     char buffer[MAXL];
     memset(buffer, 0x41, MAXL);
     prepare_packet(&m, SEND_INIT, (unsigned char *) buffer, MAXL, numar_secventa);
+    unsigned char server_MAXL = MAXL, server_EOL = EOL;
+    unsigned short server_TIME = TIME;
     char does_connect = 1;
     int timeouts = 0;
     char output_file [MAXL];
