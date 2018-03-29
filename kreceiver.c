@@ -9,97 +9,103 @@
 #define HOST "127.0.0.1"
 #define PORT 10001
 
-unsigned char numar_secventa = 0;
-
 int main(int argc, char** argv) {
 
 
 	init(HOST, PORT);
-    msg send_init_recv_msg, m, packetNAK, packetACK;
-    char buffer[MAXL];
+    msg sendInitMessage, message, packetNAK, packetACK;
+    msg * receivedPacket = NULL; // pachetul pe care il primim
+    char buffer[MAXL]; // buffer-ul pentru datele din fisiere
     memset(buffer, 0x41, MAXL);
-    prepare_packet(&m, SEND_INIT, (unsigned char *) buffer, MAXL, numar_secventa);
-    unsigned char server_MAXL = MAXL, server_EOL = EOL;
+    unsigned char seqNumber = 0; // numarul de secventa
+    prepare_packet(&message, SEND_INIT, (unsigned char *) buffer, MAXL, seqNumber);
+    // cream pachetul SEND-INIT
     unsigned short server_TIME = TIME;
-    char does_connect = 1;
-    int timeouts = 0;
-    char output_file [MAXL];
+    char does_connect = 1; // daca se conecteaza receiver-ul la sender
+    int timeoutCount = 0; // counter de timeout
+    char output_file [MAXL]; // bufferul pentru datele din fisiere
     while (1)
     {
-        msg * recv_packet = NULL;
-        if(does_connect == 0){    //astept pachet de la sender
-            printf("[Receiver] Waiting for packet from sender...\n");
-            recv_packet = receive_message_timeout(TIME);
+        // daca nu se conecteaza receiver-ul la sender
+        if (does_connect == 0) {
+            printf("[Receiver] Trying to connect with sender...\n");
+            receivedPacket = receive_message_timeout(TIME);
         } else {
             does_connect = 0;
-            recv_message(&send_init_recv_msg);
-            recv_packet = &send_init_recv_msg;
-            printf("[Receiver] Trying to connect with sender...\n"); //asteapta primul mesaj(init) de la sender   
+            recv_message(&sendInitMessage); // primim pachet de la sender
+            receivedPacket = &sendInitMessage;
+            printf("[Receiver] Waiting for packet from sender...\n");
         }
 
-        if (recv_packet == NULL) //tratarea timeoutului
+        if (receivedPacket == NULL)
         {
-            ++timeouts;
+            ++timeoutCount;
             printf("[Receiver] TIMEOUT\n");
-            if(timeouts > 2) { 
+            if(timeoutCount > 2) { 
                 printf("[Receiver] Number of timeout allowed exceeded!\n");
                 exit(1);
             }
             continue;
         }
 
-        timeouts = 0;
+        timeoutCount = 0;
 
-        if(!checkCRC(recv_packet)) { //verific crc-ul calculat cu cel din pachet
+        if(!checkCRC(receivedPacket)) { 
+            // daca CRC-ul nu este corect, incerc sa primesc din nou pachetul si dau NAK
             printf ("[Receiver] Incorrect CRC\n");
-            prepare_packet(&packetNAK, NAK, 0, 0, numar_secventa); //trimit nack in cazul in care pachetul a fost corupt
-            send_message(&packetNAK);
+            prepare_packet(&packetNAK, NAK, 0, 0, seqNumber); //trimit nack in cazul in care pachetul a fost corupt
+            printf("[Receiver] Sending NAK\n");
+            send_message(&packetNAK); // dau NAK la sender
             continue;
         }
 
-        if(*(recv_packet->payload + 3) != SEND_INIT){
-            prepare_packet(&packetACK, ACK, 0, 0, numar_secventa);
-            send_message(&packetACK);
-        } else { // Primesc configuratia senderului si ii trimit ack cu configuratia recieverului
-            
-            server_MAXL = (unsigned char) recv_packet->payload[4];
-            memcpy(&server_TIME, recv_packet->payload + 5, 2);
-            server_EOL = (unsigned char) recv_packet->payload[8];
-
-            unsigned char reciever_settings[MAXL];
-            memset(reciever_settings, 0, MAXL);
-            reciever_settings[0] = MAXL;
+        if(*(receivedPacket->payload + 3) != SEND_INIT) {
+            prepare_packet(&packetACK, ACK, 0, 0, seqNumber); // creez ACK
+            printf("[Receiver] Sending ACK\n");
+            send_message(&packetACK); // dau ACK
+        } else { 
+            // primesc setarile de la sender si dau ACK cu setarile de la receiver
+            memcpy(&server_TIME, receivedPacket->payload + 5, 2);
+            unsigned char recBuffer[MAXL];
+            memset(recBuffer, 0, MAXL);
+            recBuffer[0] = MAXL;
             unsigned char time = TIME; 
-            memcpy(reciever_settings + 1, &time, 2);
-            reciever_settings[4] = EOL;
+            memcpy(recBuffer + 1, &time, 2);
+            recBuffer[4] = EOL;
 
-            prepare_packet(&packetACK, ACK, reciever_settings, MAXL, numar_secventa);
-            send_message(&packetACK);
+            prepare_packet(&packetACK, ACK, recBuffer, MAXL, seqNumber); // creez ACK
+            printf("[Receiver] Sending ACK\n");
+            send_message(&packetACK); // dau ACK
 
         }
 
-        numar_secventa = (numar_secventa + 1) % 64;
+        seqNumber = (seqNumber + 1) % 64; // incrementam numarul de secventa
         int fd;
 
-        if (recv_packet->payload[3] == FILE_HEADER) {
+        if (getTypePacket(receivedPacket) == FILE_HEADER) {
+            // cream si deschidem fisierul in care scriem datele
             strcpy (output_file, "recv_");
-            strcat (output_file, recv_packet->payload + 4);
+            strcat (output_file, receivedPacket->payload + 4);
             printf("[Receiver] Receiving FILE-HEADER\n");
             fd = open(output_file, O_CREAT | O_RDWR | O_TRUNC, 0777);
-        } else if (recv_packet->payload[3] == DATE) {
+        } else if (getTypePacket(receivedPacket) == DATE) {
+            // scriem datele din fisier
             printf("[Receiver] Receiving DATE\n");
-            write(fd, recv_packet->payload + 4, (unsigned char)( recv_packet->payload[1] - 5));
-        } else if (recv_packet->payload[3] == EOFZ) {
+            write(fd, receivedPacket->payload + 4, (unsigned char) (receivedPacket->payload[1] - 5));
+        } else if (getTypePacket(receivedPacket) == EOFZ) {
+            // inchidem fisierul
             printf("[Receiver] Receiving END-OF-FILE\n");
             close (fd);
-        } else if (recv_packet->payload[3] == EOT) {
+        } else if (getTypePacket(receivedPacket) == EOT) {
+            // sfarsitul transmisiei
             printf("[Receiver] Receiving END-OF-TRANSMISSION\n");
             printf("[Receiver] Transmission ended\n");
             exit(0);
         }
         
-        if(recv_packet->payload[3] != SEND_INIT)
-            free(recv_packet);
+        // curatam memoria ca toti oamenii
+        if(getTypePacket(receivedPacket) != SEND_INIT)
+            free(receivedPacket);
     }
     return 0;
 }

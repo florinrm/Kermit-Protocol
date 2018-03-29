@@ -54,107 +54,10 @@ int recv_message(msg* r);
 msg* receive_message_timeout(int timeout); //timeout in milliseconds
 unsigned short crc16_ccitt(const void *buf, int len);
 
-void createMessageType1 (msg *m) {
-    package pkt;
-    dataPackage data;
-    m->len = 0;
-    memset(m->payload, 0, sizeof(m->payload));
-
-    pkt.soh = SOH;
-    pkt.len = 5 + sizeof(data);
-    pkt.seq = SEQ;
-    pkt.type = SEND_INIT;
-
-    data.maxl = MAXL;
-    data.time = TIME / 1000;
-    data.npad = NPAD;
-    data.pdac = PADC;
-    data.capa = 0;
-    data.r = 0;
-    data.eol = EOL;
-    data.chkt = 0;
-    data.qbin = 0;
-    data.qctl = 0;
-    data.rept = 0;
-
-    memcpy (pkt.data, &data, sizeof(data));
-
-    pkt.check = crc16_ccitt (&pkt, sizeof(pkt) - 3); // -3 = ignoram ultimii 3 membri din struct package
-    pkt.mark = EOL;
-
-    memcpy(m->payload, &pkt, sizeof(pkt));
-    m->len = sizeof(pkt);
-} // mesaj de tip S (start init)
 
 char getTimeMax (msg *m) {
     return m->payload[5];
 }
-
-void createMessageType2 (msg *m, char* fileName) {
-    package pkt;
-    m->len = 0;
-    memset(m->payload, 0, sizeof(m->payload));
-    pkt.soh = SOH;
-    pkt.len = 5 + strlen(fileName);
-    pkt.seq = SEQ;
-    pkt.type = FILE_HEADER;
-
-    memcpy (pkt.data, &fileName, sizeof(fileName));
-    pkt.check = crc16_ccitt (&pkt, sizeof(pkt) - 3);
-    pkt.mark = EOL;
-
-    memcpy(m->payload, &pkt, sizeof(pkt));
-    m->len = sizeof(pkt);
-} // file header
-
-void createMessageType3 (msg *m, char type) {
-    package pkt;
-    m->len = 0;
-    memset(m->payload, 0, sizeof(m->payload));
-    pkt.soh = SOH;
-    pkt.len = 5;
-    pkt.seq = SEQ;
-    pkt.type = type;
-    memcpy(pkt.data, 0, sizeof(pkt.data));
-    pkt.check = crc16_ccitt (&pkt, sizeof(pkt) - 3);
-    pkt.mark = EOL;
-
-    memcpy(m->payload, &pkt, sizeof(pkt));
-    m->len = sizeof(pkt);
-} // NAK, EOF, EOT
-
-void createMessageType4 (msg *m, char* data) {
-    package pkt;
-    m->len = 0;
-    memset(m->payload, 0, sizeof(m->payload));
-    pkt.soh = SOH;
-    pkt.len = 5;
-    pkt.seq = SEQ;
-    pkt.type = DATE;
-    memcpy(pkt.data, &data, sizeof(data));
-    pkt.check = crc16_ccitt (&pkt, sizeof(pkt) - 3);
-    pkt.mark = EOL;
-
-    memcpy(m->payload, &pkt, sizeof(pkt));
-    m->len = sizeof(pkt);
-} // data type package
-
-void createMessageType5 (msg *m, char* data) {
-    package pkt;
-    m->len = 0;
-    memset(m->payload, 0, sizeof(m->payload));
-    pkt.soh = SOH;
-    pkt.len = 5;
-    pkt.seq = SEQ;
-    pkt.type = ACK;
-    memcpy(pkt.data, &data, sizeof(data));
-    pkt.check = crc16_ccitt (&pkt, sizeof(pkt) - 3);
-    pkt.mark = EOL;
-
-    memcpy(m->payload, &pkt, sizeof(pkt));
-    m->len = sizeof(pkt);
-} // ACK message
-
 
 char getTypePacket (msg *m) {
     return m->payload[3];
@@ -181,18 +84,15 @@ int checkCRC (msg *m) {
     return (memcmp (&calculatedCRC, m->payload + 254, 2) == 0);
 } // verific daca CRC-ul e calculat ok
 
-void prepare_packet(msg * _packet, unsigned char _type, unsigned char * _data, unsigned char _data_len, unsigned char numar_secventa) {
-    unsigned char mark = 0x0D;
-    sprintf(_packet->payload, "%c%c%c%c", SOH,
-                                        5 + _data_len,
-                                        numar_secventa,
-                                        _type);
-    memcpy(_packet->payload + 4, _data, _data_len);
-    unsigned short crc = crc16_ccitt(_packet->payload, 254);
-    memcpy(_packet->payload + 254, &crc, 2);
-    memcpy(_packet->payload + 256, &mark, 1);
-    _packet->len = sizeof(_packet->payload);
-}
+void prepare_packet(msg * packet, unsigned char type, unsigned char * data, unsigned char dataLength, unsigned char seqNumber) {
+    unsigned char mark = EOL;
+    sprintf(packet->payload, "%c%c%c%c", SOH, 5 + dataLength, seqNumber, type); // setez primii 4 biti - ceruti in enunt
+    memcpy(packet->payload + 4, data, dataLength); // setez lungimea data
+    unsigned short crc = crc16_ccitt(packet->payload, 254);
+    memcpy(packet->payload + 254, &crc, 2); // setez CRC-ul
+    memcpy(packet->payload + 256, &mark, 1); // setez mark-ul
+    packet->len = sizeof(packet->payload); // setez marimea pachetului
+} // creare de pachet nou
 
 #endif
 
