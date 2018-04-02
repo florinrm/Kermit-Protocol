@@ -18,7 +18,7 @@ int main(int argc, char** argv) {
     char buffer[MAXL]; // buffer-ul pentru datele din fisiere
     memset(buffer, 0x41, MAXL);
     unsigned char seqNumber = 0; // numarul de secventa
-    prepare_packet(&message, SEND_INIT, (unsigned char *) buffer, MAXL, seqNumber);
+    create_packet(&message, SEND_INIT, (unsigned char *) buffer, MAXL, seqNumber);
     // cream pachetul SEND-INIT
     unsigned short server_TIME = TIME;
     char does_connect = 1; // daca se conecteaza receiver-ul la sender
@@ -53,18 +53,18 @@ int main(int argc, char** argv) {
         if(!checkCRC(receivedPacket)) { 
             // daca CRC-ul nu este corect, incerc sa primesc din nou pachetul si dau NAK
             printf ("[Receiver] Incorrect CRC\n");
-            prepare_packet(&packetNAK, NAK, 0, 0, seqNumber); //trimit nack in cazul in care pachetul a fost corupt
+            create_packet(&packetNAK, NAK, 0, 0, seqNumber); //trimit nack in cazul in care pachetul a fost corupt
             printf("[Receiver] Sending NAK\n");
             send_message(&packetNAK); // dau NAK la sender
             continue;
         }
 
         if(*(receivedPacket->payload + 3) != SEND_INIT) {
-            prepare_packet(&packetACK, ACK, 0, 0, seqNumber); // creez ACK
+            create_packet(&packetACK, ACK, 0, 0, seqNumber); // creez ACK
             printf("[Receiver] Sending ACK\n");
             send_message(&packetACK); // dau ACK
         } else { 
-            // primesc setarile de la sender si dau ACK cu setarile de la receiver
+            // dau ACK pentru SEND-INIT (cazul special de la ACK cu data de la SEND-INIT)
             memcpy(&server_TIME, receivedPacket->payload + 5, 2);
             unsigned char recBuffer[MAXL];
             memset(recBuffer, 0, MAXL);
@@ -73,7 +73,7 @@ int main(int argc, char** argv) {
             memcpy(recBuffer + 1, &time, 2);
             recBuffer[4] = EOL;
 
-            prepare_packet(&packetACK, ACK, recBuffer, MAXL, seqNumber); // creez ACK
+            create_packet(&packetACK, ACK, recBuffer, MAXL, seqNumber); // creez ACK
             printf("[Receiver] Sending ACK\n");
             send_message(&packetACK); // dau ACK
 

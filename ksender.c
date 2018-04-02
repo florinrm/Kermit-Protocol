@@ -61,34 +61,34 @@ int main(int argc, char** argv) {
     sendInitData[4] = EOL; // campul eol
 
     msg send_init, file_header, file_data, end_of_file, end_of_transmission;
-    prepare_packet(&send_init, SEND_INIT, sendInitData, MAXL, seqNumber); // creez pachetul SEND-INIT
+    create_packet(&send_init, SEND_INIT, sendInitData, MAXL, seqNumber); // creez pachetul SEND-INIT
     printf("[Sender] Sending SEND-INIT\n");
     send(&send_init, &recv_maxl, &recv_time, &recv_eol); // trimit SEND-INIT
     int i, fd, length;
     for (i = 1; i < argc; ++i)
     {
         fd = open(argv[i], O_RDONLY); // deschid fisierul
-        prepare_packet(&file_header, FILE_HEADER, (unsigned char*) argv[i], strlen(argv[i]) + 1, seqNumber);
+        create_packet(&file_header, FILE_HEADER, (unsigned char*) argv[i], strlen(argv[i]) + 1, seqNumber);
         // creez pachetul FILE-HEADER
         printf("[Sender] Sending FILE-HEADER from %s\n", argv[i]);
         send(&file_header, &recv_maxl, &recv_time, &recv_eol);
         // trimit FILE-HEADER
 
         while((length = read(fd, buffer, MAXL)) > 0) {
-            prepare_packet(&file_data, DATE, buffer, length, seqNumber);
+            create_packet(&file_data, DATE, buffer, length, seqNumber);
             // creez pachetul FILE-DATA
             printf("[Sender] Sending DATA from %s\n", argv[i]);
             send(&file_data, &recv_maxl, &recv_time, &recv_eol);
             // trimit pachetul FILE-DATA
         }
-        prepare_packet(&end_of_file, EOFZ, 0, 0, seqNumber);
+        create_packet(&end_of_file, EOFZ, 0, 0, seqNumber);
         // creez pachetul END-OF-FILE
         printf("[Sender] Sending END-OF-FILE from %s\n", argv[i]);
         send(&end_of_file, &recv_maxl, &recv_time, &recv_eol);
         // trimit END-OF-FILE
     }
     printf("[Sender] Sending END-OF-TRANSMISSION\n");
-    prepare_packet(&end_of_transmission, EOT, 0, 0, seqNumber);
+    create_packet(&end_of_transmission, EOT, 0, 0, seqNumber);
     // creez pachetul END-OF-TRANSMISSION
     send(&end_of_transmission, &recv_maxl, &recv_time, &recv_eol);
     // trimit END-OF-TRANSMISSION

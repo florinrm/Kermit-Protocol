@@ -84,9 +84,14 @@ int checkCRC (msg *m) {
     return (memcmp (&calculatedCRC, m->payload + 254, 2) == 0);
 } // verific daca CRC-ul e calculat ok
 
-void prepare_packet(msg * packet, unsigned char type, unsigned char * data, unsigned char dataLength, unsigned char seqNumber) {
+void create_packet(msg * packet, unsigned char type, unsigned char * data, unsigned char dataLength, unsigned char seqNumber) {
     unsigned char mark = EOL;
-    sprintf(packet->payload, "%c%c%c%c", SOH, 5 + dataLength, seqNumber, type); // setez primii 4 biti - ceruti in enunt
+    //sprintf(packet->payload, "%c%c%c%c", SOH, 5 + dataLength, seqNumber, type); 
+    // setez primii 4 biti - ceruti in enunt
+    packet->payload[0] = SOH;
+    packet->payload[1] = 5 + dataLength;
+    packet->payload[2] = seqNumber;
+    packet->payload[3] = type;
     memcpy(packet->payload + 4, data, dataLength); // setez lungimea data
     unsigned short crc = crc16_ccitt(packet->payload, 254);
     memcpy(packet->payload + 254, &crc, 2); // setez CRC-ul
