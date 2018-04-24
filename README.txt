@@ -1,3 +1,7 @@
+A C language implementation of Kermit Protocol.
+
+
+
 Tema 1 - Protocoale de comunicatii - Kermit Protocol
 
 Nume: Mihalache Florin-Razvan
